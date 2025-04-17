@@ -2,13 +2,27 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
 const path = require("path");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+const allowedOrigins = ["http://localhost:5173", "https://backlog.a4c.ch"];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error("CORS policy: This origin is not allowed"));
+    },
+  })
+);
+
 app.use(express.json());
 
-// Create a connection pool for MySQL
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -17,16 +31,14 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  charset: "utf8mb4",
 });
 
-// Optional: add an error event listener for the pool
 pool.on("error", (err) => {
   console.error("MySQL Pool Error: ", err);
 });
 
-// API endpoints
-
-// GET /ideas: Fetch all ideas
+// Fetch all ideas
 app.get("/ideas", (req, res) => {
   pool.query("SELECT * FROM ideas ORDER BY created_at DESC", (err, results) => {
     if (err) return res.status(500).json({ error: err });
@@ -34,31 +46,41 @@ app.get("/ideas", (req, res) => {
   });
 });
 
-// POST /ideas: Add a new idea
+// Insert only `story` — let MySQL defaults fill the rest
 app.post("/ideas", (req, res) => {
-  const {
-    usNumber,
-    epic,
-    story,
-    criteria,
-    priority,
-    storyPoints,
-    moscow,
-    state,
-  } = req.body;
+  const { story } = req.body;
+
+  console.log("🔧 POST /ideas – body:", story);
+
   pool.query(
-    `INSERT INTO ideas 
-     (usNumber, epic, story, criteria, priority, storyPoints, moscow, upvotes, downvotes, state, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, NOW())`,
-    [usNumber, epic, story, criteria, priority, storyPoints, moscow, state],
+    `INSERT INTO ideas (story) VALUES (?)`,
+    [story],
     (err, results) => {
       if (err) return res.status(500).json({ error: err });
-      res.status(201).json({ id: results.insertId });
+
+      const newId   = results.insertId;
+      const usNumber = `US-${String(newId).padStart(3, "0")}`;
+
+      pool.query(
+        `UPDATE ideas SET usNumber = ? WHERE id = ?`,
+        [usNumber, newId],
+        (err) => {
+          if (err) return res.status(500).json({ error: err });
+
+          pool.query(
+            `SELECT * FROM ideas WHERE id = ?`,
+            [newId],
+            (err, rows) => {
+              if (err) return res.status(500).json({ error: err });
+              res.status(201).json(rows[0]);
+            }
+          );
+        }
+      );
     }
   );
 });
 
-// POST /ideas/:id/vote: Update vote count for an idea
 app.post("/ideas/:id/vote", (req, res) => {
   const { id } = req.params;
   const { vote } = req.body;
@@ -75,17 +97,106 @@ app.post("/ideas/:id/vote", (req, res) => {
   const updateQuery = `UPDATE ideas SET ${column} = ${column} + 1 WHERE id = ?`;
   pool.query(updateQuery, [id], (err, updateResults) => {
     if (err) return res.status(500).json({ error: err });
-    pool.query("SELECT * FROM ideas WHERE id = ?", [id], (err, selectResults) => {
-      if (err) return res.status(500).json({ error: err });
-      if (selectResults.length === 0) {
-        return res.status(404).json({ error: "Idea not found" });
+    pool.query(
+      "SELECT * FROM ideas WHERE id = ?",
+      [id],
+      (err, selectResults) => {
+        if (err) return res.status(500).json({ error: err });
+        if (selectResults.length === 0) {
+          return res.status(404).json({ error: "Idea not found" });
+        }
+        res.json(selectResults[0]);
       }
-      res.json(selectResults[0]);
-    });
+    );
   });
 });
 
-// Serve the frontend build from the "frontend/dist" folder
+app.post("/auth/register", async (req, res) => {
+  const { username, password, role } = req.body;
+  if (!username || !password || !role) {
+    return res
+      .status(400)
+      .json({ error: "username, password and role are required" });
+  }
+
+  if (!["admin", "po", "developer"].includes(role)) {
+    return res.status(400).json({ error: "Invalid role" });
+  }
+
+  try {
+    const hash = await bcrypt.hash(password, 10);
+
+    pool.query(
+      "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+      [username, hash, role],
+      (err, results) => {
+        if (err) {
+          if (err.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({ error: "Username already taken" });
+          }
+          return res.status(500).json({ error: err });
+        }
+        res.status(201).json({ message: "User registered" });
+      }
+    );
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/auth/login", (req, res) => {
+  const { username, password } = req.body;
+  pool.query(
+    "SELECT * FROM users WHERE username = ?",
+    [username],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err });
+      if (rows.length === 0)
+        return res.status(401).json({ error: "Invalid credentials" });
+
+      const user = rows[0];
+      bcrypt.compare(password, user.password).then((match) => {
+        if (!match)
+          return res.status(401).json({ error: "Invalid credentials" });
+        const token = jwt.sign(
+          { id: user.id, role: user.role },
+          process.env.JWT_SECRET,
+          { expiresIn: "2h" }
+        );
+        res.json({ token, role: user.role });
+      });
+    }
+  );
+});
+
+function authenticate(req, res, next) {
+  const auth = req.headers.authorization?.split(" ")[1];
+  if (!auth) return res.status(401).end();
+  jwt.verify(auth, process.env.JWT_SECRET, (err, payload) => {
+    if (err) return res.status(401).end();
+    req.user = payload;
+    next();
+  });
+}
+
+app.put("/ideas/:id/priority", authenticate, (req, res) => {
+  const { role } = req.user;
+  if (!(role === "po" || role === "admin")) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  const { id } = req.params;
+  const { priority } = req.body;
+  pool.query(
+    `UPDATE ideas SET priority = ? WHERE id = ?`,
+    [priority, id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err });
+      res.status(204).end();
+    }
+  );
+});
+
 app.use("/", express.static(path.join(__dirname, "frontend/dist")));
 
 app.listen(process.env.PORT, () =>

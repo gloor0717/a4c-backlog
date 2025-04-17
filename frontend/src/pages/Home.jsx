@@ -1,41 +1,42 @@
 import { useState, useEffect } from "react";
 
-// 🎨 Styling helpers for badge colors
 const badgeColors = {
-  High: "bg-red-500",
-  Medium: "bg-yellow-400",
-  Low: "bg-green-400",
+  "non défini": "bg-gray-400",
+  "Élevé": "bg-red-500",
+  "Moyen": "bg-yellow-400",
+  "Bas": "bg-green-400",
+
+  "?": "bg-gray-400",
   XS: "bg-gray-200",
   S: "bg-gray-300",
   M: "bg-blue-200",
   L: "bg-blue-400",
   XL: "bg-blue-600",
-  Must: "bg-red-400",
-  Should: "bg-yellow-300",
-  Could: "bg-green-300"
+
+  "Doit-avoir": "bg-red-400",
+  "Devrait-avoir": "bg-yellow-300",
+  "Pourrait-avoir": "bg-green-300",
+  "N'aura pas": "bg-gray-500",
+  "à définir": "bg-gray-400",
 };
 
-// Vite exposes env variables with the VITE_ prefix
 const apiUrl = import.meta.env.VITE_API_URL;
 
 export default function Home() {
-  // Start with an empty list (data is loaded from the API)
   const [backlog, setBacklog] = useState([]);
-  const [sortBy, setSortBy] = useState(null);
+  const [sortBy, setSortBy] = useState("usNumber");
   const [sortDirection, setSortDirection] = useState("asc");
   const [search, setSearch] = useState("");
 
-  // Fetch data from the API when the component mounts
   useEffect(() => {
     fetch(`${apiUrl}/ideas`)
       .then((response) => response.json())
       .then((data) => setBacklog(data))
       .catch((error) =>
-        console.error("Error fetching backlog data from the API:", error)
+        console.error("Erreur lors de la récupération des données via l'api:", error)
       );
   }, []);
 
-  // Sorting logic (with toggling)
   const sortedBacklog = [...backlog].sort((a, b) => {
     if (!sortBy) return 0;
     const aVal = a[sortBy].toString().toLowerCase();
@@ -43,21 +44,19 @@ export default function Home() {
     return sortDirection === "asc"
       ? aVal.localeCompare(bVal)
       : bVal.localeCompare(aVal);
-  });
+  });  
 
-  // Filter by search text on the user story
   const filteredBacklog = sortedBacklog.filter((item) =>
     item.story.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Voting logic: send a vote action to the backend, and update the corresponding item in state.
   const vote = (id, type) => {
     fetch(`${apiUrl}/ideas/${id}/vote`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ vote: type })
+      body: JSON.stringify({ vote: type }),
     })
       .then((response) => response.json())
       .then((updatedItem) => {
@@ -65,10 +64,9 @@ export default function Home() {
           prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
         );
       })
-      .catch((error) => console.error("Error updating vote:", error));
+      .catch((error) => console.error("Erreur lors de la mise à jour du vote:", error));
   };
 
-  // Toggle sorting when a header is clicked
   const handleSort = (key) => {
     if (sortBy === key) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -78,18 +76,22 @@ export default function Home() {
     }
   };
 
-  // Define the header configuration, including min-width for "User Story" and "Acceptance Criteria"
   const headers = [
-    { label: "US Nb", key: "usNumber", nowrap: true },
-    { label: "Epic", key: "epic", nowrap: false },
-    { label: "User Story", key: "story", nowrap: false, minW: true },
-    { label: "Acceptance Criteria", key: "criteria", nowrap: false, minW: true },
-    { label: "Priority", key: "priority", nowrap: true },
+    { label: "US", key: "usNumber", nowrap: true },
+    { label: "Catégorie", key: "epic", nowrap: false },
+    { label: "User Stories / Idées / Fonctionnalités", key: "story", nowrap: false, minW: true },
+    {
+      label: "Critères d'acceptation",
+      key: "criteria",
+      nowrap: false,
+      minW: true,
+    },
+    { label: "Priorité", key: "priority", nowrap: true },
     { label: "Points", key: "storyPoints", nowrap: true },
     { label: "MoSCoW", key: "moscow", nowrap: true },
     { label: "👍", key: null, nowrap: true },
     { label: "👎", key: null, nowrap: true },
-    { label: "State", key: "state", nowrap: true }
+    { label: "État", key: "state", nowrap: true },
   ];
 
   return (
@@ -98,7 +100,7 @@ export default function Home() {
         <h1 className="text-3xl font-bold">📋 Backlog</h1>
         <input
           type="text"
-          placeholder="Search stories..."
+          placeholder="Rechercher une idée..."
           className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -183,27 +185,31 @@ export default function Home() {
                   {item.usNumber}
                 </td>
                 <td className="px-4 py-3">{item.epic}</td>
-                {/* Add min-width for User Story */}
                 <td className="px-4 py-3 min-w-[200px]">{item.story}</td>
-                {/* Add min-width for Acceptance Criteria */}
                 <td className="px-4 py-3 min-w-[200px]">{item.criteria}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
-                    className={`text-white px-2 py-1 rounded text-xs ${badgeColors[item.priority]}`}
+                    className={`text-white px-2 py-1 rounded text-xs ${
+                      badgeColors[item.priority]
+                    }`}
                   >
                     {item.priority}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
-                    className={`text-white px-2 py-1 rounded text-xs ${badgeColors[item.storyPoints]}`}
+                    className={`text-white px-2 py-1 rounded text-xs ${
+                      badgeColors[item.storyPoints]
+                    }`}
                   >
                     {item.storyPoints}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
-                    className={`text-white px-2 py-1 rounded text-xs ${badgeColors[item.moscow]}`}
+                    className={`text-white px-2 py-1 rounded text-xs ${
+                      badgeColors[item.moscow]
+                    }`}
                   >
                     {item.moscow}
                   </span>
@@ -236,7 +242,7 @@ export default function Home() {
             {filteredBacklog.length === 0 && (
               <tr>
                 <td colSpan="10" className="text-center py-6 text-gray-400">
-                  No matching user stories found.
+                  Aucune user story ne correspond.
                 </td>
               </tr>
             )}
