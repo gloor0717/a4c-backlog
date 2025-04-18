@@ -121,6 +121,17 @@ app.put("/ideas/:id", authenticate, (req, res) => {
   });
 });
 
+app.delete("/ideas/:id", authenticate, (req, res) => {
+  const { role } = req.user;
+  if (role !== "admin") return res.status(403).json({ error: "Forbidden" });
+
+  const { id } = req.params;
+  pool.query("DELETE FROM ideas WHERE id = ?", [id], (err) => {
+    if (err) return res.status(500).json({ error: err });
+    res.status(204).end();
+  });
+});
+
 app.post("/auth/register", async (req, res) => {
   const { username, password, role } = req.body;
   if (!username || !password || !role) {

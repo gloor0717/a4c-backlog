@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import EditModal from "../components/editModal";
@@ -61,12 +60,11 @@ export default function Home() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`    // ← send the JWT!
+          Authorization: `Bearer ${user.token}`,
         },
         body: JSON.stringify(updatedValues),
       });
       if (!res.ok) {
-        // read any JSON error message, else fallback to status
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || res.statusText);
       }
@@ -76,6 +74,27 @@ export default function Home() {
     } catch (e) {
       console.error(e);
       alert("Erreur lors de la sauvegarde : " + e.message);
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm("Supprimer définitivement cette idée ?")) return;
+    try {
+      const res = await fetch(`${apiUrl}/ideas/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || res.statusText);
+      }
+      // remove locally
+      setBacklog(bs => bs.filter(i => i.id !== id));
+    } catch (e) {
+      console.error(e);
+      alert("Erreur lors de la suppression : " + e.message);
     }
   }
 
@@ -197,13 +216,20 @@ export default function Home() {
                 </span>
               </td>
               {isAdmin && (
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap space-x-2">
                   <button
                     onClick={() => openEdit(item)}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded"
                     title="Modifier"
                   >
                     ✏️
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="bg-red-100 hover:bg-red-200 text-red-800 p-2 rounded"
+                    title="Supprimer"
+                  >
+                    🗑️
                   </button>
                 </td>
               )}

@@ -1,3 +1,4 @@
+// src/components/EditModal.jsx
 import { useState, useEffect } from "react";
 
 export default function EditModal({ isOpen, onClose, initialData, onSave }) {
@@ -14,13 +15,13 @@ export default function EditModal({ isOpen, onClose, initialData, onSave }) {
   useEffect(() => {
     if (initialData) {
       setValues({
-        epic: initialData.epic,
-        story: initialData.story,
-        criteria: initialData.criteria,
-        priority: initialData.priority,
-        storyPoints: initialData.storyPoints,
-        moscow: initialData.moscow,
-        state: initialData.state,
+        epic:        initialData.epic       || "",
+        story:       initialData.story      || "",
+        criteria:    initialData.criteria   || "",
+        priority:    initialData.priority   || "",
+        storyPoints: initialData.storyPoints|| "",
+        moscow:      initialData.moscow     || "",
+        state:       initialData.state      || "",
       });
     }
   }, [initialData]);
@@ -30,7 +31,7 @@ export default function EditModal({ isOpen, onClose, initialData, onSave }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50"
-      style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
       onClick={onClose}
     >
       <div
@@ -38,6 +39,8 @@ export default function EditModal({ isOpen, onClose, initialData, onSave }) {
         onClick={e => e.stopPropagation()}
       >
         <h2 className="text-xl font-semibold mb-4">Modifier la user story</h2>
+
+        {/* --- form fields --- */}
         <div className="space-y-4">
           <div>
             <label className="block text-sm">Catégorie</label>
@@ -67,50 +70,82 @@ export default function EditModal({ isOpen, onClose, initialData, onSave }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* Priority */}
             <div>
               <label className="block text-sm">Priorité</label>
               <select
                 className="mt-1 w-full border rounded px-2 py-1"
                 value={values.priority}
-                onChange={e => setValues(v => ({ ...v, priority: e.target.value }))}
+                onChange={e =>
+                  setValues(v => ({ ...v, priority: e.target.value }))
+                }
               >
-                <option>Bas</option>
-                <option>Moyen</option>
-                <option>Élevé</option>
+                <option value="non défini">non défini</option>
+                <option value="Bas">Bas</option>
+                <option value="Moyen">Moyen</option>
+                <option value="Élevé">Élevé</option>
               </select>
             </div>
+
+            {/* Story Points */}
             <div>
               <label className="block text-sm">Points</label>
               <select
                 className="mt-1 w-full border rounded px-2 py-1"
                 value={values.storyPoints}
-                onChange={e => setValues(v => ({ ...v, storyPoints: e.target.value }))}
+                onChange={e =>
+                  setValues(v => ({ ...v, storyPoints: e.target.value }))
+                }
               >
-                {["XS","S","M","L","XL"].map(p => <option key={p}>{p}</option>)}
+                <option value="?">?</option>
+                {["XS", "S", "M", "L", "XL"].map(p => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
             </div>
+
+            {/* MoSCoW */}
             <div>
               <label className="block text-sm">MoSCoW</label>
               <select
                 className="mt-1 w-full border rounded px-2 py-1"
                 value={values.moscow}
-                onChange={e => setValues(v => ({ ...v, moscow: e.target.value }))}
+                onChange={e =>
+                  setValues(v => ({ ...v, moscow: e.target.value }))
+                }
               >
-                {["Doit-avoir","Devrait-avoir","Pourrait-avoir","N'aura pas"].map(m => <option key={m}>{m}</option>)}
+                <option value="à définir">à définir</option>
+                {["Doit-avoir", "Devrait-avoir", "Pourrait-avoir", "N'aura pas"].map(
+                  m => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  )
+                )}
               </select>
             </div>
+
+            {/* State */}
             <div>
               <label className="block text-sm">État</label>
               <select
                 className="mt-1 w-full border rounded px-2 py-1"
                 value={values.state}
-                onChange={e => setValues(v => ({ ...v, state: e.target.value }))}
+                onChange={e =>
+                  setValues(v => ({ ...v, state: e.target.value }))
+                }
               >
-                {["à valider","en cours","terminé","à archiver"].map(s => <option key={s}>{s}</option>)}
+                <option value="à valider">à valider</option>
+                <option value="en cours">en cours</option>
+                <option value="terminé">terminé</option>
+                <option value="à archiver">à archiver</option>
               </select>
             </div>
           </div>
         </div>
+        {/* --- /form fields --- */}
 
         <div className="mt-6 flex justify-end space-x-3">
           <button
