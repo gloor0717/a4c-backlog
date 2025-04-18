@@ -2,27 +2,63 @@ import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import EditModal from "../components/editModal";
 
-const badgeColors = {
+// 1) Centralize your colour maps by category
+const PRIORITY_COLORS = {
   "non défini": "bg-gray-400",
-  Élevé: "bg-red-500",
-  Moyen: "bg-yellow-400",
   Bas: "bg-green-400",
+  Moyen: "bg-yellow-400",
+  Élevé: "bg-red-500",
+};
+
+const POINTS_COLORS = {
   "?": "bg-gray-400",
   XS: "bg-gray-200",
   S: "bg-gray-300",
   M: "bg-blue-200",
   L: "bg-blue-400",
   XL: "bg-blue-600",
+};
+
+const MOSCOW_COLORS = {
+  "à définir": "bg-gray-400",
   "Doit-avoir": "bg-red-400",
   "Devrait-avoir": "bg-yellow-300",
   "Pourrait-avoir": "bg-green-300",
   "N'aura pas": "bg-gray-500",
-  "à définir": "bg-gray-400",
+};
+
+const STATE_COLORS = {
   "à valider": "bg-indigo-200",
   "en cours": "bg-blue-300",
   terminé: "bg-green-300",
   "à archiver": "bg-gray-500",
 };
+
+// default fallback
+const DEFAULT_BADGE = "bg-gray-400";
+
+// 2) helper to pick the right map
+function getBadgeClass(type, value) {
+  let map;
+  switch (type) {
+    case "priority":
+      map = PRIORITY_COLORS;
+      break;
+    case "storyPoints":
+      map = POINTS_COLORS;
+      break;
+    case "moscow":
+      map = MOSCOW_COLORS;
+      break;
+    case "state":
+      map = STATE_COLORS;
+      break;
+    default:
+      return DEFAULT_BADGE;
+  }
+  return map[value] || DEFAULT_BADGE;
+}
+
 
 export default function Home() {
   const { user } = useContext(AuthContext);
@@ -189,29 +225,29 @@ export default function Home() {
               <td className="px-4 py-3 min-w-[200px]">{item.criteria}</td>
               <td className="px-4 py-3 whitespace-nowrap">
                 <span className={`text-white px-2 py-1 rounded text-xs ${
-                  badgeColors[item.priority]
-                }`}>
+                    getBadgeClass("priority", item.priority)
+                  }`}>
                   {item.priority}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
                 <span className={`text-white px-2 py-1 rounded text-xs ${
-                  badgeColors[item.storyPoints]
-                }`}>
+                    getBadgeClass("storyPoints", item.storyPoints)
+                  }`}>
                   {item.storyPoints}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
                 <span className={`text-white px-2 py-1 rounded text-xs ${
-                  badgeColors[item.moscow]
-                }`}>
+                    getBadgeClass("moscow", item.moscow)
+                  }`}>
                   {item.moscow}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
                 <span className={`text-white px-2 py-1 rounded text-xs ${
-                  badgeColors[item.state]
-                }`}>
+                    getBadgeClass("state", item.state)
+                  }`}>
                   {item.state}
                 </span>
               </td>
