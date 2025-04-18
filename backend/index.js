@@ -81,33 +81,43 @@ app.post("/ideas", (req, res) => {
   );
 });
 
-app.post("/ideas/:id/vote", (req, res) => {
-  const { id } = req.params;
-  const { vote } = req.body;
-  let column;
-
-  if (vote === "up") {
-    column = "upvotes";
-  } else if (vote === "down") {
-    column = "downvotes";
-  } else {
-    return res.status(400).json({ error: "Invalid vote type" });
+// PUT /ideas/:id — full update (admin only)
+app.put("/ideas/:id", authenticate, (req, res) => {
+  const { role } = req.user;
+  if (role !== "admin") {
+    return res.status(403).json({ error: "Forbidden" });
   }
 
-  const updateQuery = `UPDATE ideas SET ${column} = ${column} + 1 WHERE id = ?`;
-  pool.query(updateQuery, [id], (err, updateResults) => {
+  const { id } = req.params;
+  // pull only the fields we allow
+  const { epic, story, criteria, priority, storyPoints, moscow, state } = req.body;
+
+
+  // build dynamic SET clause
+  const fields = [];
+  const values = [];
+
+  if (epic !== undefined)       { fields.push("epic = ?");       values.push(epic); }
+  if (story !== undefined)      { fields.push("story = ?");      values.push(story); }
+  if (criteria !== undefined)   { fields.push("criteria = ?");   values.push(criteria); }
+  if (priority !== undefined)   { fields.push("priority = ?");   values.push(priority); }
+  if (storyPoints !== undefined){ fields.push("storyPoints = ?");values.push(storyPoints); }
+  if (moscow !== undefined)     { fields.push("moscow = ?");     values.push(moscow); }
+  if (state !== undefined)      { fields.push("state = ?");      values.push(state); }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: "No fields to update" });
+  }
+
+  const sql = `UPDATE ideas SET ${fields.join(", ")} WHERE id = ?`;
+  values.push(id);
+
+  pool.query(sql, values, (err) => {
     if (err) return res.status(500).json({ error: err });
-    pool.query(
-      "SELECT * FROM ideas WHERE id = ?",
-      [id],
-      (err, selectResults) => {
-        if (err) return res.status(500).json({ error: err });
-        if (selectResults.length === 0) {
-          return res.status(404).json({ error: "Idea not found" });
-        }
-        res.json(selectResults[0]);
-      }
-    );
+    pool.query("SELECT * FROM ideas WHERE id = ?", [id], (err2, rows) => {
+      if (err2) return res.status(500).json({ error: err2 });
+      res.json(rows[0]);
+    });
   });
 });
 
