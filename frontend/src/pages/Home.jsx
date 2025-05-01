@@ -34,6 +34,14 @@ const STATE_COLORS = {
   "à archiver": "bg-gray-500",
 };
 
+const PRIORITY_ORDER = {
+  "Élevé": 1,
+  "Moyen": 2,
+  "Bas": 3,
+  "non défini": 4,
+};
+
+
 // default fallback
 const DEFAULT_BADGE = "bg-gray-400";
 
@@ -157,13 +165,22 @@ export default function Home() {
     ? [...baseHeaders, { label: "Actions", key: null, nowrap: true }]
     : baseHeaders;
 
-  const sorted = [...backlog].sort((a, b) => {
-    const aV = (a[sortBy] || "").toString().toLowerCase();
-    const bV = (b[sortBy] || "").toString().toLowerCase();
-    return sortDirection === "asc"
-      ? aV.localeCompare(bV)
-      : bV.localeCompare(aV);
-  });
+    const sorted = [...backlog].sort((a, b) => {
+      let aV = a[sortBy];
+      let bV = b[sortBy];
+    
+      if (sortBy === "priority") {
+        const aRank = PRIORITY_ORDER[aV] ?? 999;
+        const bRank = PRIORITY_ORDER[bV] ?? 999;
+        return sortDirection === "asc" ? aRank - bRank : bRank - aRank;
+      }
+    
+      aV = (aV || "").toString().toLowerCase();
+      bV = (bV || "").toString().toLowerCase();
+      return sortDirection === "asc"
+        ? aV.localeCompare(bV)
+        : bV.localeCompare(aV);
+    });
   const filtered = sorted.filter(i =>
     i.story.toLowerCase().includes(search.toLowerCase())
   );

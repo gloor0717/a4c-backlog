@@ -7,8 +7,7 @@ export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // shared links
-  const commonLinks = user
+  let commonLinks = user
     ? [
         { to: "/", label: "Backlog" },
         { to: "/ajouter", label: "Ajouter" },
@@ -18,6 +17,11 @@ export default function Navbar() {
         { to: "/ajouter", label: "Ajouter" },
         { to: "/connexion", label: "Connexion" },
       ];
+
+  // Add the admin-only link
+  if (user && user.role === "admin") {
+    commonLinks.push({ to: "/enregistrement", label: "S'enregistrer" });
+  }
 
   return (
     <nav className="bg-white border-b shadow sticky top-0 z-50 font-sans">
