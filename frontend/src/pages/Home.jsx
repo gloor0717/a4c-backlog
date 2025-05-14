@@ -35,12 +35,11 @@ const STATE_COLORS = {
 };
 
 const PRIORITY_ORDER = {
-  "Élevé": 1,
-  "Moyen": 2,
-  "Bas": 3,
+  Élevé: 1,
+  Moyen: 2,
+  Bas: 3,
   "non défini": 4,
 };
-
 
 // default fallback
 const DEFAULT_BADGE = "bg-gray-400";
@@ -67,7 +66,6 @@ function getBadgeClass(type, value) {
   return map[value] || DEFAULT_BADGE;
 }
 
-
 export default function Home() {
   const { user } = useContext(AuthContext);
   const isAdmin = user?.role === "admin";
@@ -84,7 +82,7 @@ export default function Home() {
 
   useEffect(() => {
     fetch(`${apiUrl}/ideas`)
-      .then(r => r.json())
+      .then((r) => r.json())
       .then(setBacklog)
       .catch(console.error);
   }, []);
@@ -113,7 +111,7 @@ export default function Home() {
         throw new Error(err.error || res.statusText);
       }
       const updated = await res.json();
-      setBacklog(bs => bs.map(i => (i.id === updated.id ? updated : i)));
+      setBacklog((bs) => bs.map((i) => (i.id === updated.id ? updated : i)));
       closeEdit();
     } catch (e) {
       console.error(e);
@@ -135,7 +133,7 @@ export default function Home() {
         throw new Error(err.error || res.statusText);
       }
       // remove locally
-      setBacklog(bs => bs.filter(i => i.id !== id));
+      setBacklog((bs) => bs.filter((i) => i.id !== id));
     } catch (e) {
       console.error(e);
       alert("Erreur lors de la suppression : " + e.message);
@@ -144,12 +142,34 @@ export default function Home() {
 
   function handleSort(key) {
     if (sortBy === key) {
-      setSortDirection(d => (d === "asc" ? "desc" : "asc"));
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(key);
       setSortDirection("asc");
     }
   }
+
+async function handleVote(id) {
+  try {
+    const res = await fetch(`${apiUrl}/ideas/${id}/vote`, {
+      method: "POST",
+    });
+    if (res.status === 409) {
+      alert("Vous avez déjà voté pour cette idée.");
+      return;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || res.statusText);
+    }
+    const updated = await res.json();
+    setBacklog(bs => bs.map(i => (i.id === updated.id ? updated : i)));
+  } catch (e) {
+    console.error(e);
+    alert("Erreur lors du vote : " + e.message);
+  }
+}
+
 
   const baseHeaders = [
     { label: "US", key: "usNumber", nowrap: true },
@@ -160,28 +180,33 @@ export default function Home() {
     { label: "Points", key: "storyPoints", nowrap: true },
     { label: "MoSCoW", key: "moscow", nowrap: true },
     { label: "État", key: "state", nowrap: true },
+    { label: "Votes", key: "votes", nowrap: true },
   ];
   const headers = isAdmin
     ? [...baseHeaders, { label: "Actions", key: null, nowrap: true }]
     : baseHeaders;
 
-    const sorted = [...backlog].sort((a, b) => {
-      let aV = a[sortBy];
-      let bV = b[sortBy];
-    
-      if (sortBy === "priority") {
-        const aRank = PRIORITY_ORDER[aV] ?? 999;
-        const bRank = PRIORITY_ORDER[bV] ?? 999;
-        return sortDirection === "asc" ? aRank - bRank : bRank - aRank;
-      }
-    
-      aV = (aV || "").toString().toLowerCase();
-      bV = (bV || "").toString().toLowerCase();
-      return sortDirection === "asc"
-        ? aV.localeCompare(bV)
-        : bV.localeCompare(aV);
-    });
-  const filtered = sorted.filter(i =>
+  const sorted = [...backlog].sort((a, b) => {
+    let aV = a[sortBy];
+    let bV = b[sortBy];
+
+    if (sortBy === "priority") {
+      const aRank = PRIORITY_ORDER[aV] ?? 999;
+      const bRank = PRIORITY_ORDER[bV] ?? 999;
+      return sortDirection === "asc" ? aRank - bRank : bRank - aRank;
+    }
+
+    if (sortBy === "votes") {
+      return sortDirection === "asc" ? a.votes - b.votes : b.votes - a.votes;
+    }
+
+    aV = (aV || "").toString().toLowerCase();
+    bV = (bV || "").toString().toLowerCase();
+    return sortDirection === "asc"
+      ? aV.localeCompare(bV)
+      : bV.localeCompare(aV);
+  });
+  const filtered = sorted.filter((i) =>
     i.story.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -194,7 +219,7 @@ export default function Home() {
           placeholder="Rechercher..."
           className="w-full sm:w-64 px-3 py-2 border rounded"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
@@ -229,11 +254,8 @@ export default function Home() {
           </tr>
         </thead>
         <tbody>
-          {filtered.map(item => (
-            <tr
-              key={item.id}
-              className="border-t hover:bg-gray-50 transition"
-            >
+          {filtered.map((item) => (
+            <tr key={item.id} className="border-t hover:bg-gray-50 transition">
               <td className="px-4 py-3 font-mono whitespace-nowrap">
                 {item.usNumber}
               </td>
@@ -241,32 +263,53 @@ export default function Home() {
               <td className="px-4 py-3 min-w-[200px]">{item.story}</td>
               <td className="px-4 py-3 min-w-[200px]">{item.criteria}</td>
               <td className="px-4 py-3 whitespace-nowrap">
-                <span className={`text-white px-2 py-1 rounded text-xs ${
-                    getBadgeClass("priority", item.priority)
-                  }`}>
+                <span
+                  className={`text-white px-2 py-1 rounded text-xs ${getBadgeClass(
+                    "priority",
+                    item.priority
+                  )}`}
+                >
                   {item.priority}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
-                <span className={`text-white px-2 py-1 rounded text-xs ${
-                    getBadgeClass("storyPoints", item.storyPoints)
-                  }`}>
+                <span
+                  className={`text-white px-2 py-1 rounded text-xs ${getBadgeClass(
+                    "storyPoints",
+                    item.storyPoints
+                  )}`}
+                >
                   {item.storyPoints}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
-                <span className={`text-white px-2 py-1 rounded text-xs ${
-                    getBadgeClass("moscow", item.moscow)
-                  }`}>
+                <span
+                  className={`text-white px-2 py-1 rounded text-xs ${getBadgeClass(
+                    "moscow",
+                    item.moscow
+                  )}`}
+                >
                   {item.moscow}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
-                <span className={`text-white px-2 py-1 rounded text-xs ${
-                    getBadgeClass("state", item.state)
-                  }`}>
+                <span
+                  className={`text-white px-2 py-1 rounded text-xs ${getBadgeClass(
+                    "state",
+                    item.state
+                  )}`}
+                >
                   {item.state}
                 </span>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-center">
+                <button
+                  onClick={() => handleVote(item.id)}
+                  className="text-dark hover:border-primary p-2 rounded border"
+                  title="Voter"
+                >
+                  👍 {item.votes}
+                </button>
               </td>
               {isAdmin && (
                 <td className="px-4 py-3 whitespace-nowrap space-x-2">

@@ -223,3 +223,43 @@ app.use("/", express.static(path.join(__dirname, "frontend/dist")));
 app.listen(process.env.PORT, () =>
   console.log("Server running on port " + process.env.PORT)
 );
+
+app.post("/ideas/:id/vote", (req, res) => {
+  const { id } = req.params;
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+
+  pool.query(
+    "SELECT id FROM votes WHERE idea_id = ? AND ip_address = ?",
+    [id, ip],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err });
+
+      if (results.length > 0) {
+        return res.status(409).json({ error: "Vous avez déjà voté." });
+      }
+
+      pool.query(
+        "INSERT INTO votes (idea_id, ip_address) VALUES (?, ?)",
+        [id, ip],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: err2 });
+
+          pool.query(
+            "UPDATE ideas SET votes = votes + 1 WHERE id = ?",
+            [id],
+            (err3) => {
+              if (err3) return res.status(500).json({ error: err3 });
+
+              pool.query("SELECT * FROM ideas WHERE id = ?", [id], (err4, rows) => {
+                if (err4) return res.status(500).json({ error: err4 });
+                res.json(rows[0]);
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
